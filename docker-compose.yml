@@ -1,0 +1,52 @@
+# FlowGate - Ambiente de Desenvolvimento Local
+# Para subir: docker compose up -d
+# Para parar: docker compose down
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: flowgate-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: flowgatedb
+      POSTGRES_USER: flowgate
+      POSTGRES_PASSWORD: FlowGate2025
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flowgate -d flowgatedb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ../FlowGate.Core
+      dockerfile: Dockerfile
+    container_name: flowgate-backend
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=flowgatedb;Username=flowgate;Password=FlowGate2025
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ../FlowGate.Portal
+      dockerfile: Dockerfile
+    container_name: flowgate-frontend
+    restart: unless-stopped
+    ports:
+      - "4200:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
